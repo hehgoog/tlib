@@ -46,3 +46,8 @@ void HELPER(log)(uint32_t id, uint32_t pc)
 {
   tlib_printf(LOG_LEVEL_INFO, "Log @ pc=0x%08X (block start: 0x%08X) : '%s'", pc, CPU_PC(env), msgs[id] == NULL ? "unknown??" : msgs[id]);
 }
+
+void HELPER(var_log)(target_ulong v)
+{
+  tlib_printf(LOG_LEVEL_INFO, "Var Log:" TARGET_FMT_lu, v);
+}

@@ -67,3 +67,10 @@ void generate_log(uint32_t pc, char *format, ...) {
     tcg_temp_free(ll2);
 #endif
 }
+
+void generate_var_log(TCGv v)
+{
+#ifdef DEBUG_ON
+    gen_helper_var_log(v);
+#endif
+}
