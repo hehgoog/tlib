@@ -32,6 +32,7 @@
 int gen_new_label(void);
 
 TCGv_ptr cpu_env;
+extern CPUState *cpu;
 static TCGArg *event_size_arg;
 
 static int stopflag_label;
@@ -88,6 +89,20 @@ static inline void gen_block_footer(TranslationBlock *tb)
     gen_set_label(stopflag_label);
     tcg_gen_exit_tb((uintptr_t)tb + 2);
     *gen_opc_ptr = INDEX_op_end;
+}
+
+void gen_exit_tb(uintptr_t val, TranslationBlock *tb)
+{
+    if(cpu->block_finished_hook_present)
+    {
+        // This line may be missleading - we do not raport exact pc + size,
+        // as the size of the current instruction is not yet taken into account.
+        // Effectively it gives us the PC of the current instruction.
+        TCGv last_instruction = tcg_const_tl(tb->pc + tb->size);
+        gen_helper_block_finished_event(last_instruction);
+        tcg_temp_free(last_instruction);
+    }
+    tcg_gen_exit_tb(val);
 }
 
 static int get_max_instruction_count(CPUState *env, TranslationBlock *tb)
