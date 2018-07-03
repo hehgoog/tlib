@@ -77,7 +77,7 @@ static inline void gen_block_header(TranslationBlock *tb)
     }
 }
 
-static inline void gen_block_footer(TranslationBlock *tb)
+static inline void gen_block_footer(CPUState *env, TranslationBlock *tb)
 {
     if (tlib_is_on_block_translation_enabled) {
         tlib_on_block_translation(tb->pc, tb->size, tb->disas_flags);
@@ -87,7 +87,7 @@ static inline void gen_block_footer(TranslationBlock *tb)
       *event_size_arg = tb->icount;
     }
     gen_set_label(stopflag_label);
-    tcg_gen_exit_tb((uintptr_t)tb + 2);
+    gen_exit_tb((uintptr_t)tb + 2, tb);
     *gen_opc_ptr = INDEX_op_end;
 }
 
@@ -133,7 +133,7 @@ void cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 
     gen_block_header(tb);
     gen_intermediate_code(env, tb, get_max_instruction_count(env, tb));
-    gen_block_footer(tb);
+    gen_block_footer(env, tb);
 
     /* generate machine code */
     gen_code_buf = tb->tc_ptr;
@@ -166,7 +166,7 @@ int cpu_restore_state(CPUState *env,
 
     gen_block_header(tb);
     gen_intermediate_code(env, tb, get_max_instruction_count(env, tb));
-    gen_block_footer(tb);
+    gen_block_footer(env, tb);
 
     /* find opc index corresponding to search_pc */
     tc_ptr = (uintptr_t)tb->tc_ptr;
