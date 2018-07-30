@@ -33,9 +33,9 @@ void HELPER(prepare_block_for_execution)(void* tb)
   cpu->instructions_count_value += current_block_size;
 }
 
-void HELPER(block_begin_event)(target_ulong address, uint32_t size)
+uint32_t HELPER(block_begin_event)(target_ulong address, uint32_t size)
 {
-  tlib_on_block_begin(address, size);
+  return tlib_on_block_begin(address, size);
 }
 
 void HELPER(block_finished_event)(target_ulong address)
