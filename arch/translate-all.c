@@ -34,6 +34,7 @@ int gen_new_label(void);
 TCGv_ptr cpu_env;
 extern CPUState *cpu;
 static TCGArg *event_size_arg;
+static TCGArg *event_size2_arg;
 
 static int stopflag_label;
 
@@ -50,6 +51,7 @@ CPUBreakpoint *process_breakpoints(CPUState *env, target_ulong pc) {
 static inline void gen_block_header(TranslationBlock *tb)
 {
     TCGv_i32 flag;
+    int execute_block_label = gen_new_label();
     stopflag_label = gen_new_label();
     flag = tcg_temp_local_new_i32();
     tcg_gen_ld_i32(flag, cpu_env, offsetof(CPUState, exit_request));
@@ -68,15 +70,13 @@ static inline void gen_block_header(TranslationBlock *tb)
     if(tlib_is_block_begin_event_enabled())
     {
       TCGv event_address = tcg_const_tl(tb->pc);
+      TCGv_i32 result = tcg_temp_new_i32();
+
       event_size_arg = gen_opparam_ptr + 1;
       TCGv_i32 event_size = tcg_const_i32(0xFFFF); // bogus value that is to be fixed at later point
-
-      TCGv_i32 result = tcg_temp_new_i32();
       gen_helper_block_begin_event(result, event_address, event_size);
       tcg_temp_free(event_address);
       tcg_temp_free_i32(event_size);
-
-      int execute_block_label = gen_new_label();
 
       TCGv_i64 const_zero = tcg_const_i64(0);
       tcg_gen_brcond_i64(TCG_COND_NE, result, const_zero, execute_block_label);
@@ -88,9 +88,15 @@ static inline void gen_block_header(TranslationBlock *tb)
       tcg_temp_free_i32(const_one);
 
       tcg_gen_br(stopflag_label);
-
-      gen_set_label(execute_block_label);
     }
+
+    gen_set_label(execute_block_label);
+
+    // it looks like we cannot re-use tcg_const in two places - that's why I create a second copy of it here
+    event_size2_arg = gen_opparam_ptr + 1;
+    TCGv_i32 event_size2 = tcg_const_i32(0xFFFF); // bogus value that is to be fixed at later point
+    gen_helper_update_instructions_count(event_size2);
+    tcg_temp_free_i32(event_size2);
 }
 
 static inline void gen_block_footer(CPUState *env, TranslationBlock *tb)
@@ -102,6 +108,7 @@ static inline void gen_block_footer(CPUState *env, TranslationBlock *tb)
     {
       *event_size_arg = tb->icount;
     }
+    *event_size2_arg = tb->icount;
     gen_set_label(stopflag_label);
     gen_exit_tb((uintptr_t)tb + 2, tb);
     *gen_opc_ptr = INDEX_op_end;
