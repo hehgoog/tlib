@@ -112,6 +112,8 @@ struct TranslationBlock {
     // this field is necessary when restoring the state of tb (using cpu_restore_state) in order to limit the size of retranslated block not to be bigger than original one;
     // SIGSEGVs have been observed otherwise
     uint16_t original_size;
+    // this field is used to keep track of the previous value of size, i.e., it shows the size of translation block without the last instruction; used by a blockend hook
+    uint16_t prev_size;
 };
 
 static inline unsigned int tb_jmp_cache_hash_page(target_ulong pc)
