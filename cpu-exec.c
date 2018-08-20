@@ -231,6 +231,10 @@ int cpu_exec(CPUState *env)
                 if (unlikely(env->tb_restart_request)) {
                     env->tb_restart_request = 0;
                     cpu_loop_exit(env);
+                if (unlikely(env->wfi)) {
+                    // this is assigned in order to set a proper return code and exit `cpu_exec`
+                    env->exception_index = EXCP_HALTED;
+                    cpu_loop_exit(env);
                 }
 
 #ifdef TARGET_PROTO_ARM_M
