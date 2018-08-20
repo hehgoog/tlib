@@ -127,11 +127,17 @@ void tlib_restart_translation_block()
   target_ulong pc, cs_base;
   int cpu_flags;
 
-  tlib_restore_context();
+  int executed_instructions = tlib_restore_context();
   cpu_get_tb_cpu_state(cpu, &pc, &cs_base, &cpu_flags);
   tb_phys_invalidate(cpu->current_tb, -1);
   tb_gen_code(cpu, pc, cs_base, cpu_flags, 1);
-  longjmp(cpu->jmp_env, 1);
+
+  if(cpu->block_finished_hook_present)
+  {
+      tlib_on_block_finished(CPU_PC(cpu), executed_instructions);
+  }
+
+  longjmp(cpu->jmp_env, 1);  //for watchpoints!
 }
 
 void tlib_set_paused()

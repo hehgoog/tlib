@@ -18,6 +18,7 @@
  */
 #include "cpu.h"
 #include "tcg.h"
+#include "dyngen-exec.h"
 
 target_ulong virt_to_phys(target_ulong virt) {
 #if (TARGET_LONG_BITS == 32)
@@ -47,10 +48,21 @@ target_ulong virt_to_phys(target_ulong virt) {
 
 int tb_invalidated_flag;
 
-void cpu_loop_exit(CPUState *env)
+static void TLIB_NORETURN cpu_loop_exit_without_hook(CPUState *env)
 {
     env->current_tb = NULL;
     longjmp(env->jmp_env, 1);
+}
+
+void TLIB_NORETURN cpu_loop_exit(CPUState *env)
+{
+    if(env->block_finished_hook_present)
+    {
+        target_ulong pc = CPU_PC(env);
+        // TODO: here we would need to have the number of executed instructions, how?!
+        tlib_on_block_finished(pc, 0);
+    }
+    cpu_loop_exit_without_hook(env);
 }
 
 static TranslationBlock *tb_find_slow(CPUState *env,
@@ -209,7 +221,7 @@ int cpu_exec(CPUState *env)
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
                         env->exception_index = EXCP_DEBUG;
-                        cpu_loop_exit(env);
+                        cpu_loop_exit_without_hook(env);
                     }
                     if (process_interrupt(interrupt_request, env)) {
                         next_tb = 0;
@@ -226,15 +238,16 @@ int cpu_exec(CPUState *env)
                 if (unlikely(env->exit_request)) {
                     env->exit_request = 0;
                     env->exception_index = EXCP_INTERRUPT;
-                    cpu_loop_exit(env);
+                    cpu_loop_exit_without_hook(env);
                 }
                 if (unlikely(env->tb_restart_request)) {
                     env->tb_restart_request = 0;
-                    cpu_loop_exit(env);
+                    cpu_loop_exit_without_hook(env);
+                }
                 if (unlikely(env->wfi)) {
                     // this is assigned in order to set a proper return code and exit `cpu_exec`
                     env->exception_index = EXCP_HALTED;
-                    cpu_loop_exit(env);
+                    cpu_loop_exit_without_hook(env);
                 }
 
 #ifdef TARGET_PROTO_ARM_M
@@ -281,7 +294,7 @@ int cpu_exec(CPUState *env)
                         cpu_pc_from_tb(env, tb);
                         env->exception_index = EXCP_INTERRUPT;
                         next_tb = 0;
-                        cpu_loop_exit(env);
+                        cpu_loop_exit_without_hook(env);
                     }
                 }
                 env->current_tb = NULL;
