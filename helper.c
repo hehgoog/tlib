@@ -37,9 +37,9 @@ uint32_t HELPER(block_begin_event)(target_ulong address, uint32_t size)
   return tlib_on_block_begin(address, size);
 }
 
-void HELPER(block_finished_event)(target_ulong address)
+void HELPER(block_finished_event)(target_ulong address, uint32_t executed_instructions)
 {
-  tlib_on_block_finished(address);
+  tlib_on_block_finished(address, executed_instructions);
 }
 
 void HELPER(abort)(void) {

@@ -120,7 +120,9 @@ void gen_exit_tb(uintptr_t val, TranslationBlock *tb)
         // as the size of the current instruction is not yet taken into account.
         // Effectively it gives us the PC of the current instruction.
         TCGv last_instruction = tcg_const_tl(tb->pc + tb->prev_size);
-        gen_helper_block_finished_event(last_instruction);
+        TCGv_i32 executed_instructions = tcg_const_i32(tb->icount);
+        gen_helper_block_finished_event(last_instruction, executed_instructions);
+        tcg_temp_free_i32(executed_instructions);
         tcg_temp_free(last_instruction);
     }
     tcg_gen_exit_tb(val);
