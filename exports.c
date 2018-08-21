@@ -130,13 +130,14 @@ void tlib_restart_translation_block()
   int executed_instructions = tlib_restore_context();
   cpu_get_tb_cpu_state(cpu, &pc, &cs_base, &cpu_flags);
   tb_phys_invalidate(cpu->current_tb, -1);
-  tb_gen_code(cpu, pc, cs_base, cpu_flags, 1);
+  tb_gen_code(cpu, pc, cs_base, cpu_flags, 0);
 
   if(cpu->block_finished_hook_present)
   {
       tlib_on_block_finished(CPU_PC(cpu), executed_instructions);
   }
 
+  cpu->exception_index = EXCP_WATCHPOINT;
   longjmp(cpu->jmp_env, 1);  //for watchpoints!
 }
 
@@ -329,12 +330,6 @@ int32_t tlib_get_state_size()
   // be interpreted as an amount of bytes
   // to store during serialization.
   return (ssize_t)(&((CPUState *) 0)->current_tb);
-}
-
-// this function is used to exit C code and jump back to C# after finishing execution of the current TB
-void tlib_request_exit()
-{
-  cpu->interrupt_request = CPU_INTERRUPT_DEBUG;
 }
 
 void tlib_set_chaining_enabled(uint32_t val)
