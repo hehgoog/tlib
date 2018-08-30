@@ -243,8 +243,13 @@ int cpu_restore_state(CPUState *env,
       instructions_executed_so_far += tcg->gen_opc_instr_start[k];
       k--;
     }
-    cpu->instructions_count_value -= (tb->icount - instructions_executed_so_far);
-    cpu->instructions_count_total_value -= (tb->icount - instructions_executed_so_far);
+
+    if(tb->instructions_count_dirty)
+    {
+        cpu->instructions_count_value -= (tb->icount - instructions_executed_so_far);
+        cpu->instructions_count_total_value -= (tb->icount - instructions_executed_so_far);
+        tb->instructions_count_dirty = 0;
+    }
 
     restore_state_to_opc(env, tb, j);
 

@@ -31,6 +31,7 @@ void HELPER(update_instructions_count)(uint32_t current_block_size)
 {
   cpu->instructions_count_value += current_block_size;
   cpu->instructions_count_total_value += current_block_size;
+  cpu->current_tb->instructions_count_dirty = 1;
 }
 
 uint32_t HELPER(block_begin_event)(target_ulong address, uint32_t size)
