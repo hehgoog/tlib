@@ -542,6 +542,7 @@ extern CPUState *cpu;
 
 /* Debug event pending.  */
 #define CPU_INTERRUPT_DEBUG       0x0080
+#define CPU_INTERRUPT_RETURN      0x0100
 
 /* Several target-specific external hardware interrupts.  Each target/cpu.h
    should define proper names based on these defines.  */

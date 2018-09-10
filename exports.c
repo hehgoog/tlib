@@ -141,15 +141,9 @@ void tlib_restart_translation_block()
   longjmp(cpu->jmp_env, 1);  //for watchpoints!
 }
 
-void tlib_set_paused()
+void tlib_set_return_request()
 {
-  cpu_interrupt(cpu, CPU_INTERRUPT_DEBUG);
-}
-
-void tlib_clear_paused()
-{
-  cpu_reset_interrupt(cpu, CPU_INTERRUPT_DEBUG);
-  cpu_reset_exit_request(cpu);
+  cpu_interrupt(cpu, CPU_INTERRUPT_RETURN);
 }
 
 int32_t tlib_is_wfi()

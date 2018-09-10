@@ -223,6 +223,11 @@ int cpu_exec(CPUState *env)
                         env->exception_index = EXCP_DEBUG;
                         cpu_loop_exit_without_hook(env);
                     }
+                    if (interrupt_request & CPU_INTERRUPT_RETURN) {
+                        env->interrupt_request &= ~CPU_INTERRUPT_RETURN;
+                        env->exception_index = EXCP_RETURN;
+                        cpu_loop_exit_without_hook(env);
+                    }
                     if (process_interrupt(interrupt_request, env)) {
                         next_tb = 0;
                     }
