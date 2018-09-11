@@ -176,7 +176,7 @@ int cpu_exec(CPUState *env)
 
     if (env->wfi) {
         if (!cpu_has_work(env)) {
-            return EXCP_HALTED;
+            return EXCP_WFI;
         }
 
         env->wfi = 0;
@@ -251,7 +251,7 @@ int cpu_exec(CPUState *env)
                 }
                 if (unlikely(env->wfi)) {
                     // this is assigned in order to set a proper return code and exit `cpu_exec`
-                    env->exception_index = EXCP_HALTED;
+                    env->exception_index = EXCP_WFI;
                     cpu_loop_exit_without_hook(env);
                 }
 
