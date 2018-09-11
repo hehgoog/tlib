@@ -72,6 +72,7 @@ typedef uint64_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 #define EXCP_WATCHPOINT 0x10004
 // TODO: zastanowić się czy tu nie można użyć po prostu EXCP_INTERRUPT
 #define EXCP_RETURN     0x10005
+#define EXTERNAL_RETURN_REQUEST 0x800000
 
 #define TB_JMP_CACHE_BITS 12
 #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
