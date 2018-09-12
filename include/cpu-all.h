@@ -542,7 +542,6 @@ extern CPUState *cpu;
 
 /* Debug event pending.  */
 #define CPU_INTERRUPT_DEBUG       0x0080
-#define CPU_INTERRUPT_RETURN      0x0100
 
 /* Several target-specific external hardware interrupts.  Each target/cpu.h
    should define proper names based on these defines.  */
@@ -583,7 +582,6 @@ static inline void cpu_interrupt(CPUState *s, int mask)
 
 void cpu_reset_interrupt(CPUState *env, int mask);
 
-void cpu_exit(CPUState *s);
 
 /* Breakpoint flags */
 #define BP_GDB                0x10

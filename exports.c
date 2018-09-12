@@ -143,7 +143,7 @@ void tlib_restart_translation_block()
 
 void tlib_set_return_request()
 {
-  cpu_interrupt(cpu, CPU_INTERRUPT_RETURN);
+  cpu->exit_request = 1;
 }
 
 int32_t tlib_is_wfi()

@@ -193,13 +193,6 @@ int cpu_exec(CPUState *env)
                 if (env->exception_index >= EXCP_INTERRUPT) {
                     /* exit request from the cpu execution loop */
                     ret = env->exception_index;
-
-                    if(env->interrupt_request & CPU_INTERRUPT_RETURN)
-                    {
-                        env->interrupt_request &= ~CPU_INTERRUPT_RETURN;
-                        env->exception_index |= EXTERNAL_RETURN_REQUEST;
-                    }
-
                     if ((ret == EXCP_DEBUG) && debug_excp_handler) {
                         debug_excp_handler(env);
                     }
@@ -228,11 +221,6 @@ int cpu_exec(CPUState *env)
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
                         env->exception_index = EXCP_DEBUG;
-                        cpu_loop_exit_without_hook(env);
-                    }
-                    if (interrupt_request & CPU_INTERRUPT_RETURN) {
-                        env->interrupt_request &= ~CPU_INTERRUPT_RETURN;
-                        env->exception_index = EXTERNAL_RETURN_REQUEST;
                         cpu_loop_exit_without_hook(env);
                     }
                     if (process_interrupt(interrupt_request, env)) {
