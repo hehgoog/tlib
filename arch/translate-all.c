@@ -117,7 +117,7 @@ static void gen_interrupt_tb(uintptr_t val, TranslationBlock *tb)
     tcg_gen_exit_tb(val);
 }
 
-static inline void gen_block_footer(CPUState *env, TranslationBlock *tb)
+static inline void gen_block_footer(TranslationBlock *tb)
 {
     if (tlib_is_on_block_translation_enabled) {
         tlib_on_block_translation(tb->pc, tb->size, tb->disas_flags);
@@ -187,7 +187,7 @@ void cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 
     gen_block_header(tb);
     gen_intermediate_code(env, tb, get_max_instruction_count(env, tb));
-    gen_block_footer(env, tb);
+    gen_block_footer(tb);
 
     /* generate machine code */
     gen_code_buf = tb->tc_ptr;
@@ -220,7 +220,7 @@ int cpu_restore_state(CPUState *env,
 
     gen_block_header(tb);
     gen_intermediate_code(env, tb, get_max_instruction_count(env, tb));
-    gen_block_footer(env, tb);
+    gen_block_footer(tb);
 
     /* find opc index corresponding to search_pc */
     tc_ptr = (uintptr_t)tb->tc_ptr;
