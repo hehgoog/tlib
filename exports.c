@@ -336,6 +336,7 @@ uint32_t tlib_get_chaining_enabled()
   return !cpu->chaining_disabled;
 }
 
+#if DEBUG
 void tlib_set_tb_cache_enabled(uint32_t val)
 {
     cpu->tb_cache_disabled = !val;
@@ -345,6 +346,7 @@ uint32_t tlib_get_tb_cache_enabled()
 {
     return !cpu->tb_cache_disabled;
 }
+#endif
 
 void tlib_set_block_finished_hook_present(uint32_t val)
 {
