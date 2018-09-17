@@ -109,16 +109,15 @@ static inline void gen_block_header(TranslationBlock *tb)
 }
 
 // TODO: this function is very simmilar to `gen_exit_tb` - merge it together
-static void gen_interrupt_tb(uintptr_t val, TranslationBlock *tb)
+static void gen_interrupt_tb(uintptr_t val, TranslationBlock *tb, int executed_instructions_count)
 {
     if(cpu->block_finished_hook_present)
     {
-        // This line may be missleading - we do not raport exact pc + size,
+        // This line may be missleading - we do not report exact pc + size,
         // as the size of the current instruction is not yet taken into account.
         // Effectively it gives us the PC of the current instruction.
         TCGv last_instruction = tcg_const_tl(tb->pc + tb->prev_size);
-        // since the block was interrupted before executing any instruction we return 0
-        TCGv_i32 executed_instructions = tcg_const_i32(0);
+        TCGv_i32 executed_instructions = tcg_const_i32(executed_instructions_count);
         gen_helper_block_finished_event(last_instruction, executed_instructions);
         tcg_temp_free_i32(executed_instructions);
         tcg_temp_free(last_instruction);
@@ -151,7 +150,8 @@ static inline void gen_block_footer(TranslationBlock *tb)
     tcg_gen_br(finish_label);
 
     gen_set_label(exit_hook_interrupted_label);
-    gen_interrupt_tb(tcg_exit_tb_arg, tb);
+    // since the block was interrupted before executing any instructions, we pass 0 as executed_instructions_count
+    gen_interrupt_tb(tcg_exit_tb_arg, tb, 0);
     tcg_gen_br(finish_label);
 
     gen_set_label(exit_no_hook_label);
@@ -163,18 +163,7 @@ static inline void gen_block_footer(TranslationBlock *tb)
 
 void gen_exit_tb(uintptr_t val, TranslationBlock *tb)
 {
-    if(cpu->block_finished_hook_present)
-    {
-        // This line may be missleading - we do not raport exact pc + size,
-        // as the size of the current instruction is not yet taken into account.
-        // Effectively it gives us the PC of the current instruction.
-        TCGv last_instruction = tcg_const_tl(tb->pc + tb->prev_size);
-        TCGv_i32 executed_instructions = tcg_const_i32(tb->icount);
-        gen_helper_block_finished_event(last_instruction, executed_instructions);
-        tcg_temp_free_i32(executed_instructions);
-        tcg_temp_free(last_instruction);
-    }
-    tcg_gen_exit_tb(val);
+    gen_interrupt_tb(val, tb, tb->icount);
 }
 
 static int get_max_instruction_count(CPUState *env, TranslationBlock *tb)
