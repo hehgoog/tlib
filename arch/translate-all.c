@@ -34,7 +34,7 @@ int gen_new_label(void);
 TCGv_ptr cpu_env;
 extern CPUState *cpu;
 static TCGArg *event_size_arg;
-static TCGArg *event_size2_arg;
+static TCGArg *instruction_count_arg;
 
 static int exit_no_hook_label;
 static int exit_hook_interrupted_label;
@@ -93,10 +93,10 @@ static inline void gen_block_header(TranslationBlock *tb)
     gen_set_label(execute_block_label);
 
     // it looks like we cannot re-use tcg_const in two places - that's why I create a second copy of it here
-    event_size2_arg = gen_opparam_ptr + 1;
-    TCGv_i32 event_size2 = tcg_const_i32(0xFFFF); // bogus value that is to be fixed at later point
-    gen_helper_update_instructions_count(event_size2);
-    tcg_temp_free_i32(event_size2);
+    instruction_count_arg = gen_opparam_ptr + 1;
+    TCGv_i32 instruction_count = tcg_const_i32(0xFFFF); // bogus value that is to be fixed at later point
+    gen_helper_update_instructions_count(instruction_count);
+    tcg_temp_free_i32(instruction_count);
 }
 
 // TODO: this function is very simmilar to `gen_exit_tb` - merge it together
@@ -126,7 +126,7 @@ static inline void gen_block_footer(TranslationBlock *tb)
     {
       *event_size_arg = tb->icount;
     }
-    *event_size2_arg = tb->icount;
+    *instruction_count_arg = tb->icount;
 
     int finish_label = gen_new_label();
     gen_exit_tb((uintptr_t)tb + 2, tb);
