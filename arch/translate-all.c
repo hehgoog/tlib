@@ -144,16 +144,18 @@ static inline void gen_block_footer(TranslationBlock *tb)
     }
     *instruction_count_arg = tb->icount;
 
+    uintptr_t tcg_exit_tb_arg = (uintptr_t)tb + 2;
+
     int finish_label = gen_new_label();
-    gen_exit_tb((uintptr_t)tb + 2, tb);
+    gen_exit_tb(tcg_exit_tb_arg, tb);
     tcg_gen_br(finish_label);
 
     gen_set_label(exit_hook_interrupted_label);
-    gen_interrupt_tb((uintptr_t)tb + 2, tb);
+    gen_interrupt_tb(tcg_exit_tb_arg, tb);
     tcg_gen_br(finish_label);
 
     gen_set_label(exit_no_hook_label);
-    tcg_gen_exit_tb((uintptr_t)tb + 2);
+    tcg_gen_exit_tb(tcg_exit_tb_arg);
 
     gen_set_label(finish_label);
     *gen_opc_ptr = INDEX_op_end;
