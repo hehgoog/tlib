@@ -48,7 +48,7 @@ static int validate_vm(CPUState *env, target_ulong vm)
         valid_vm_1_10[vm & 0xf] : valid_vm_1_09[vm & 0xf];
 }
 
-void __attribute__ ((__noreturn__)) cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc, uint32_t call_hook)
+void __attribute__ ((__noreturn__)) cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc, bool call_hook)
 {
     TranslationBlock *tb;
     uint32_t executed_instructions = 0;
@@ -74,7 +74,7 @@ static inline uint64_t cpu_riscv_read_instret(CPUState *env)
 
 /* Exceptions processing helpers */
 static inline void __attribute__ ((__noreturn__)) do_raise_exception_err(CPUState *env,
-                                          uint32_t exception, uintptr_t pc, uint32_t call_hook)
+                                          uint32_t exception, uintptr_t pc, bool call_hook)
 {
     env->exception_index = exception;
     cpu_loop_exit_restore(env, pc, call_hook);
@@ -82,18 +82,18 @@ static inline void __attribute__ ((__noreturn__)) do_raise_exception_err(CPUStat
 
 void helper_raise_exception(CPUState *env, uint32_t exception)
 {
-    do_raise_exception_err(env, exception, 0, 1);
+    do_raise_exception_err(env, exception, 0, true);
 }
 
 void helper_raise_exception_debug(CPUState *env)
 {
-    do_raise_exception_err(env, EXCP_DEBUG, 0, 1);
+    do_raise_exception_err(env, EXCP_DEBUG, 0, true);
 }
 
 void helper_raise_exception_mbadaddr(CPUState *env, uint32_t exception,
         target_ulong bad_pc) {
     env->badaddr = bad_pc;
-    do_raise_exception_err(env, exception, 0, 1);
+    do_raise_exception_err(env, exception, 0, true);
 }
 
 void helper_tlb_flush(CPUState *env);
@@ -583,7 +583,7 @@ void validate_csr(CPUState *env, uint64_t which, uint64_t write)
     unsigned csr_priv = get_field((which), 0x300);
     unsigned csr_read_only = get_field((which), 0xC00) == 3;
     if (((write) && csr_read_only) || (env->priv < csr_priv)) {
-        do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, env->pc, 1);
+        do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, env->pc, true);
     }
 }
 
