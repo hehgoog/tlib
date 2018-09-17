@@ -49,6 +49,15 @@ CPUBreakpoint *process_breakpoints(CPUState *env, target_ulong pc) {
     return NULL;
 }
 
+// The current flow of the block header is as follows:
+// 1. We verify if the exit_request is set. If so, we go to exit_no_hook_label
+//     - we did not call the block-begin hook yet, we do not have to call the block-end hook as well (via the exit_no_hook_label).
+// 2. We verify if we can execute the whole block or if we should crop it. If we do,
+//     than we skip the hooks, as in the previous point.
+// 3. If we have a block-begin hook registered, we call it and we verify the return value. If the
+//     value is equal to 0, we continue with the block execution. Otherwise it means the CPU was paused,
+//     so we go directly to the block-end hook (via the exit_hook_interrupted_label).
+// 4. If we execute the block, we finish the header, start execution of the translated code and then go to the header.
 static inline void gen_block_header(TranslationBlock *tb)
 {
     TCGv_i32 flag;
@@ -117,6 +126,13 @@ static void gen_interrupt_tb(uintptr_t val, TranslationBlock *tb)
     tcg_gen_exit_tb(val);
 }
 
+// If we start the footer from the very beginning, it means we finished the execution of a block.
+// 1. In the translation phase we call tlib_is_on_block_translation_enabled to report finished translation of a block.
+// 2. If we expect the block-begin event to fire, we update the block size to tb->icount.
+//     The same happens for instruction_count_arg, which is used for instruction counting and time keeping.
+// 3. If the block was finished in a regular way, we go to gen_exit_tb and then we finish the block processing.
+// 4. If the block was interrupted by pausing in the block-begin hook, we go to gen_interrupt_tb and then finish.
+// 5. If we did not even call the block-begin hook, e.g. due to block trimming, we cleanup the TCG and exit.
 static inline void gen_block_footer(TranslationBlock *tb)
 {
     if (tlib_is_on_block_translation_enabled) {
