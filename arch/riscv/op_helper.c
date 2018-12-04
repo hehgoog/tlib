@@ -616,9 +616,9 @@ static inline target_ulong csr_read_helper(CPUState *env, target_ulong csrno)
  */
 void validate_csr(CPUState *env, uint64_t which, uint64_t write)
 {
-    unsigned csr_priv = get_field((which), 0x300);
+        //unsigned csr_priv = get_field((which), 0x300);
     unsigned csr_read_only = get_field((which), 0xC00) == 3;
-    if (((write) && csr_read_only) || (env->priv < csr_priv)) {
+    if (((write) && csr_read_only)) {//|| (env->priv < csr_priv)) {
         helper_raise_exception(env, RISCV_EXCP_ILLEGAL_INST);
     }
 }
@@ -773,6 +773,10 @@ void tlb_fill(CPUState *env, target_ulong addr, int is_write, int mmu_idx,
               void* retaddr)
 {
     int ret;
+    if (((addr & 0xF0000000) != 0xC0000000) && (((addr & 0xF0000000) != 0xE0000000))) {
+    //        tlib_printf(LOG_LEVEL_ERROR, "tlb_fill addr = %08X mmu_idx=%d", addr, mmu_idx);
+//	    if ((addr & 0xF000000) != 0xA000000) tlib_abort("tlb_fill!");
+	 }
     ret = cpu_riscv_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (ret == TRANSLATE_FAIL) {
         // is_write == 2 ==> CODE ACCESS - do not fire block_end hooks!

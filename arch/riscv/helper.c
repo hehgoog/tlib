@@ -117,6 +117,13 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
     int levels=0, ptidxbits=0, ptesize=0, vm=0, sum=0;
     int mxr = get_field(env->mstatus, MSTATUS_MXR);
 
+    if (((addr & 0xF0000000) == 0xE0000000) || ((addr & 0xF0000000) == 0xC0000000))  {
+        // TODO: hack
+        *physical = addr;
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        return TRANSLATE_SUCCESS;
+    }
+
     if (env->privilege_architecture_1_10) {
         base = get_field(env->satp, SATP_PPN) << PGSHIFT;
         sum = get_field(env->mstatus, MSTATUS_SUM);

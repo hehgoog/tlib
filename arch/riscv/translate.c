@@ -1777,6 +1777,7 @@ static void decode_RV32_64G(CPUState *env, DisasContext *ctx)
                ctx->pc);
         break;
     case OPC_RISC_JAL:
+
         imm = GET_JAL_IMM(ctx->opcode);
         gen_jal(env, ctx, rd, imm);
         break;
@@ -1845,6 +1846,7 @@ static void decode_RV32_64G(CPUState *env, DisasContext *ctx)
                      GET_RM(ctx->opcode));
         break;
     case OPC_RISC_FENCE:
+
         /* standard fence is nop, fence_i flushes TB (like an icache): */
         if (ctx->opcode & 0x1000) { /* FENCE_I */
             gen_helper_fence_i(cpu_env);
@@ -1852,8 +1854,13 @@ static void decode_RV32_64G(CPUState *env, DisasContext *ctx)
             gen_exit_tb_no_chaining(ctx->tb);
             ctx->bstate = BS_BRANCH;
         }
+        if ((ctx->opcode == 0x5700f) || (ctx->opcode == 0x2b6700f)) {
+         //   tlib_printf(LOG_LEVEL_ERROR, "vexriscv op = %X rs1=%X rs2=%X rd=%X imm=%X", op, rs1, rs2, rd, imm);
+        }
+
         break;
     case OPC_RISC_SYSTEM:
+
         gen_system(ctx, MASK_OP_SYSTEM(ctx->opcode), rd, rs1,
                    (ctx->opcode & 0xFFF00000) >> 20);
         break;
@@ -1861,6 +1868,7 @@ static void decode_RV32_64G(CPUState *env, DisasContext *ctx)
         kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
         break;
     }
+
     generate_log(ctx->pc, "after RV32_64G");
 }
 

@@ -273,8 +273,10 @@ void REGPARM glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
 
     acquire_global_memory_lock(cpu);
     register_address_access(cpu, addr);
-
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+//    tlib_printf(LOG_LEVEL_ERROR, "We are in __st, addr = %X mmu_idx = %d", addr, mmu_idx);
+//    tlib_printf(LOG_LEVEL_ERROR, "tlb_addr = %X",  cpu->tlb_table[mmu_idx][index].addr_write);
+
  redo:
     tlb_addr = cpu->tlb_table[mmu_idx][index].addr_write;
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
