@@ -84,6 +84,8 @@ DEF_HELPER_2(check_address_reservation, tl, env, tl)
 
 DEF_HELPER_2(handle_custom_instruction, i32, i64, i64)
 
+DEF_HELPER_3(load_tlb, void, i32, i32, i32)
+
 void do_interrupt(CPUState *env);
 
 #include "def-helper.h"

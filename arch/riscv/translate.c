@@ -1789,6 +1789,8 @@ static void decode_RV32_64C(CPUState *env, DisasContext *ctx)
     }
 }
 
+extern int virt_reg;
+
 static void decode_RV32_64G(CPUState *env, DisasContext *ctx)
 {
     int rs1;
@@ -1889,12 +1891,24 @@ static void decode_RV32_64G(CPUState *env, DisasContext *ctx)
                      GET_RM(ctx->opcode));
         break;
     case OPC_RISC_FENCE:
-        /* standard fence is nop, fence_i flushes TB (like an icache): */
-        if (ctx->opcode & 0x1000) { /* FENCE_I */
-            gen_helper_fence_i(cpu_env);
-            tcg_gen_movi_tl(cpu_pc, ctx->next_pc);
-            gen_exit_tb_no_chaining(ctx->tb);
-            ctx->bstate = BS_BRANCH;
+        // asmlinkage void vexriscv_mmu_map(uint32_t virt, uint32_t phys_and_flags, uint32_t location) {
+        //    LOAD_VIRTUAL(0, 10, 0);
+        //    LOAD_TLB(0, 12, 11);
+        //
+
+        // this is a hack for vex
+        if(ctx->opcode & 0x02000000)
+        {
+            if(cpu->priv > 0)
+            {
+                // #define LOAD_TLB(_rd, _rs1, _rs2 ) r_type_insn(0b0000001, _rs2, _rs1, 0b111, _rd, 0b0001111)
+                gen_helper_load_tlb(cpu_gpr[virt_reg], cpu_gpr[rs2], cpu_gpr[rs1]);
+            }
+        }
+        else
+        {
+            // #define LOAD_VIRTUAL(_rd, _rs1, _rs2 ) r_type_insn(0b0000000, _rs2, _rs1, 0b111, _rd, 0b0001111)
+            virt_reg = rs1;
         }
         break;
     case OPC_RISC_SYSTEM:

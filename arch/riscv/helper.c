@@ -92,6 +92,56 @@ int riscv_cpu_hw_interrupts_pending(CPUState *env)
     }
 }
 
+#define MAX_NUMBER_OF_MAPPINGS 256
+static target_ulong __virtuals[MAX_NUMBER_OF_MAPPINGS];
+static target_phys_addr_t __physicals[MAX_NUMBER_OF_MAPPINGS];
+static int __flags[MAX_NUMBER_OF_MAPPINGS];
+
+int virt_reg;
+
+void set_virt_to_phys_mapping(int id, target_phys_addr_t physical, target_ulong virtual, int flags)
+{
+    if(id < 0 || id >= MAX_NUMBER_OF_MAPPINGS)
+    {
+        tlib_abortf("Bad mapping: %d", id);
+        return;
+    }
+
+    __virtuals[id] = virtual;
+    __physicals[id] = physical;
+    __flags[id] = flags;
+}
+
+int get_phys_from_virt(target_ulong virtual, target_phys_addr_t* physical, int* flags)
+{
+    for(int i = 0; i < MAX_NUMBER_OF_MAPPINGS; i++)
+    {
+        if(__virtuals[i] == virtual && __flags[i] != 0)
+        {
+            if(physical != NULL)
+            {
+                *physical = __physicals[i];
+            }
+
+            if(flags != NULL)
+            {
+                *flags = __flags[i];
+            }
+
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+void helper_load_tlb(int32_t virtual, int32_t physical_and_flags, int32_t location)
+{
+    int32_t physical = (physical_and_flags & 0xFFFFF) << 12;
+    int32_t flags = (physical_and_flags & 0xFFF00000) >> 20;
+    set_virt_to_phys_mapping(location, physical, virtual << 12, (flags >> 8) & 0x7);
+}
+
 /* get_physical_address - get the physical address for this virtual address
  *
  * Do a page table walk to obtain the physical address corresponding to a
@@ -120,6 +170,28 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return TRANSLATE_SUCCESS;
     }
+
+
+    // TODO: access_type?!
+    // this is a hack for vex
+    if(get_phys_from_virt(address & 0xFFFFF000, physical, prot) != -1)
+    {
+        if(        (access_type == 0 && (*prot & 0x1))
+                || (access_type == 1 && (*prot & 0x2))
+                || (access_type == 2 && (*prot & 0x4)))
+        {
+            *physical += (address &0xFFF);
+            return TRANSLATE_SUCCESS;
+        }
+    }
+
+    if (mode == PRV_S && (address & 0xf0000000) >= 0xb0000000) {
+        *physical = address;
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        return TRANSLATE_SUCCESS;
+    }
+
+    return TRANSLATE_FAIL;
 
     *prot = 0;
 
