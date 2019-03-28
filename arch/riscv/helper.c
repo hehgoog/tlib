@@ -318,6 +318,8 @@ static void raise_mmu_exception(CPUState *env, target_ulong address,
     int page_fault_exceptions =
         (env->privilege_architecture_1_10) &&
         get_field(env->satp, SATP_MODE) != VM_1_10_MBARE;
+    page_fault_exceptions = 1;
+
     int exception = 0;
     if (access_type == MMU_INST_FETCH) { /* inst access */
         exception = page_fault_exceptions ?
