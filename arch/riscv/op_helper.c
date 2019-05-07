@@ -199,7 +199,8 @@ inline void csr_write_helper(CPUState *env, target_ulong val_to_write,
         break;
     }
     case CSR_MIP: {
-        target_ulong mask = MIP_SSIP | MIP_STIP | MIP_SEIP;
+        target_ulong mask = MIP_SSIP | MIP_STIP | MIP_SEIP
+               | MIP_MEIP | MIP_MTIP | MIP_MSIP;
         pthread_mutex_lock(&env->mip_lock);
         env->mip = (env->mip & ~mask) | (val_to_write & mask);
         pthread_mutex_unlock(&env->mip_lock);
