@@ -228,68 +228,94 @@ static int pmp_is_in_range(CPUState *env, int pmp_index, target_ulong addr)
 /*
  * Check if the address has required RWX privs to complete desired operation
  */
-bool pmp_hart_has_privs(CPUState *env, target_ulong addr, target_ulong size, pmp_priv_t privs)
+pmp_priv_violation_t pmp_hart_has_privs(CPUState *env, target_ulong addr, target_ulong size, pmp_priv_t privs, pmp_priv_check_result_t *pmp_priv_check)
 {
     int i = 0;
-    int ret = -1;
-    target_ulong s = 0;
-    target_ulong e = 0;
     pmp_priv_t allowed_privs = 0;
+    pmp_priv_violation_t pmp_violation = PMP_NO_RULES;
+    pmp_priv_check->sa = 0;
+    pmp_priv_check->ea = 0;
 
     /* Short cut if no rules */
     if (0 == pmp_get_num_rules(env)) {
-        return true;
+        pmp_violation = PMP_ALLOWED;
+        return pmp_violation;
     }
 
     /* 1.10 draft priv spec states there is an implicit order
          from low to high */
     for (i = 0; i < MAX_RISCV_PMPS; i++) {
-        s = pmp_is_in_range(env, i, addr);
-        e = pmp_is_in_range(env, i, addr + size);
+        pmp_violation = PMP_NO_RULES;
+        pmp_priv_check->sa_allowed = pmp_is_in_range(env, i, addr);
+        pmp_priv_check->ea_allowed = pmp_is_in_range(env, i, addr + size);
 
         /* partially inside */
-        if ((s + e) == 1) {
+        if ((pmp_priv_check->sa_allowed + pmp_priv_check->ea_allowed) == 1) { /* partially inside */
+
             PMP_DEBUG("pmp violation - access is partially in inside");
-            ret = 0;
+            /* We are partially inside a PMP region
+             * If we are in the M-Privlege mode it is possible that this should succeed
+             * but the page size is too large during the tlb_fill
+             * store the acceptable bounds for this PMP entry */
+            pmp_priv_check->sa = env->pmp_state.addr[i].sa;
+            pmp_priv_check->ea = env->pmp_state.addr[i].ea;
+            return PMP_PARTIALLY_INSIDE;
             break;
-        }
-
-        /* fully inside */
-        const uint8_t a_field =
-            pmp_get_a_field(env->pmp_state.pmp[i].cfg_reg);
-        if ((s + e) == 2) {
-            if (PMP_AMATCH_OFF == a_field) {
-                return 1;
-            }
-
-            allowed_privs = PMP_READ | PMP_WRITE | PMP_EXEC;
-            if ((env->priv != PRV_M) || pmp_is_locked(env, i)) {
-                allowed_privs &= env->pmp_state.pmp[i].cfg_reg;
-            }
-
-            if ((privs & allowed_privs) == privs) {
-                ret = 1;
-                break;
-            } else {
-                ret = 0;
-                break;
-            }
+        } else if ((pmp_priv_check->sa_allowed + pmp_priv_check->ea_allowed) == 2) { 
+            /* fully inside */
+            pmp_violation = PMP_FULLY_INSIDE;
+            break;
         }
     }
 
     /* No rule matched */
-    if (ret == -1) {
+    if (pmp_violation == PMP_NO_RULES) {
         if (env->priv == PRV_M) {
-            ret = 1; /* Privileged spec v1.10 states if no PMP entry matches an
-                      * M-Mode access, the access succeeds */
+            /* Privileged spec v1.10 states if no PMP entry matches an
+             * M-Mode access, the access succeeds */
+            pmp_violation = PMP_ALLOWED;
         } else {
-            ret = 0; /* Other modes are not allowed to succeed if they don't
-                      * match a rule, but there are rules.  We've checked for
-                      * no rule earlier in this function. */
+            /* Other modes are not allowed to succeed if they don't
+             * match a rule, but there are rules.  We've checked for
+             * no rule earlier in this function. */
+            pmp_violation = PMP_NOT_ALLOWED;
+        }
+        return pmp_violation;
+    }
+
+    if (pmp_violation == PMP_FULLY_INSIDE) {
+        const uint8_t a_field =
+            pmp_get_a_field(env->pmp_state.pmp[i].cfg_reg); 
+        if (PMP_AMATCH_OFF == a_field) {
+            /* A-Field is set to OFF so we just allow 
+            * Short circuit the rest of checks and allow access */
+
+            /* TODO: If PMP_PARTIALLY_INSIDE we should
+            *        let the caller know the entire region is not ALLOWED */ 
+            pmp_violation = PMP_ALLOWED;
+            return pmp_violation;
+        }
+
+        allowed_privs = PMP_READ | PMP_WRITE | PMP_EXEC;
+        if ((env->priv != PRV_M) || pmp_is_locked(env, i)) {
+            /* If privilege mode is not M or Locked bit is set
+            *  extract the allowed privileges from the PMP[i]CFG 
+            *  otherwise all privileges are allowed by default */
+            allowed_privs &= env->pmp_state.pmp[i].cfg_reg;
+        }
+
+        if ((privs & allowed_privs) == privs) {
+            /* Requested privileges match the allowed privileges */
+            /* TODO: If PMP_PARTIALLY_INSIDE we should
+            *        let the caller know the entire region is not ALLOWED */
+            pmp_violation = PMP_ALLOWED;
+        } else {
+            /* Requested priveleges fail to match allowed priveleges */
+            pmp_violation = PMP_NOT_ALLOWED;
         }
     }
 
-    return ret == 1 ? true : false;
+    return pmp_violation;
 }
 
 /*

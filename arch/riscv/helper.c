@@ -133,6 +133,43 @@ int riscv_cpu_hw_interrupts_pending(CPUState *env)
         enabled_interrupts);
 }
 
+/* get_cpu_privilege_mode - get the privilege mode
+ *
+ * Check current mode and change mode if MPRV bit it set
+ */
+static int get_cpu_privilege_mode(CPUState *env, int access_type)
+{
+    int mode = env->priv;
+    if (env->priv == PRV_M && access_type != MMU_INST_FETCH) {
+        if (get_field(env->mstatus, MSTATUS_MPRV)) {
+            mode = get_field(env->mstatus, MSTATUS_MPP);
+            return mode;
+        }
+    }
+    return mode;
+}
+
+/* get_address_translation_is_bare - is memory translation set to bare */
+static bool get_address_translation_is_bare(CPUState *env)
+{
+    int vm = 0;
+    if (env->privilege_architecture >= RISCV_PRIV1_10) {
+        vm = get_field(env->satp, SATP_MODE);
+        if (vm == VM_1_10_MBARE) {
+            return true;
+        } else {
+            return false;
+        }
+    } else {
+        vm = get_field(env->mstatus, MSTATUS_VM);
+        if(vm == VM_1_09_MBARE) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
 /* get_physical_address - get the physical address for this virtual address
  *
  * Do a page table walk to obtain the physical address corresponding to a
@@ -147,14 +184,7 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical, int
     /* NOTE: the env->pc value visible here will not be
      * correct, but the value visible to the exception handler
      * (riscv_cpu_do_interrupt) is correct */
-    int mode = mmu_idx;
-
-    if (mode == PRV_M && access_type != MMU_INST_FETCH) {
-        if (get_field(env->mstatus, MSTATUS_MPRV)) {
-            mode = get_field(env->mstatus, MSTATUS_MPP);
-        }
-    }
-
+    int mode = get_cpu_privilege_mode(env, access_type);
     if (mode == PRV_M) {
         *physical = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -320,13 +350,32 @@ int cpu_handle_mmu_fault(CPUState *env, target_ulong address, int access_type, i
     target_phys_addr_t pa = 0;
     int prot;
     int ret = TRANSLATE_FAIL;
+    int page_size = TARGET_PAGE_SIZE;
 
     ret = get_physical_address(env, &pa, &prot, address, access_type, mmu_idx);
-    if (!pmp_hart_has_privs(env, pa, TARGET_PAGE_SIZE, 1 << access_type)) {
-        ret = TRANSLATE_FAIL;
+    pmp_priv_check_result_t pmp_priv_check;
+    pmp_priv_violation_t pmp_violation = pmp_hart_has_privs(env, pa, page_size, 1 << access_type, &pmp_priv_check);
+
+    if (pmp_violation == PMP_ALLOWED) {
+        ret = TRANSLATE_SUCCESS;
+    } else if (pmp_violation == PMP_PARTIALLY_INSIDE) {
+        int mode = get_cpu_privilege_mode(env, access_type);
+        bool vm_is_bare = get_address_translation_is_bare(env);
+        tlib_printf(LOG_LEVEL_DEBUG, "MODE: %d %d", mode, env->priv);
+        if (mode == PRV_M || mode == PRV_U) {
+            tlib_printf(LOG_LEVEL_DEBUG, " PARTIAL!!! 0x%08X 0x%08X 0x%08X 0x%08X", pa + page_size, pmp_priv_check.ea, access_type, mmu_idx);
+            if (vm_is_bare) {
+                ret = TRANSLATE_SUCCESS;
+            } else {
+                ret = TRANSLATE_FAIL;
+            }
+        } else {
+            ret = TRANSLATE_FAIL;
+        }
     }
+
     if (ret == TRANSLATE_SUCCESS) {
-        tlb_set_page(env, address & TARGET_PAGE_MASK, pa & TARGET_PAGE_MASK, prot, mmu_idx, TARGET_PAGE_SIZE);
+        tlb_set_page(env, address & TARGET_PAGE_MASK, pa & TARGET_PAGE_MASK, prot, mmu_idx, page_size);
     } else if (ret == TRANSLATE_FAIL) {
         raise_mmu_exception(env, address, access_type);
     }

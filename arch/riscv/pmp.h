@@ -58,10 +58,26 @@ typedef struct {
     uint32_t num_rules;
 } pmp_table_t;
 
+typedef enum {
+    PMP_NO_RULES,
+    PMP_PARTIALLY_INSIDE,
+    PMP_FULLY_INSIDE,
+    PMP_ALLOWED,
+    PMP_NOT_ALLOWED,
+} pmp_priv_violation_t;
+
+typedef struct {
+    target_ulong sa;
+    target_ulong sa_allowed;
+    target_ulong ea;
+    target_ulong ea_allowed;
+    pmp_priv_violation_t priv;
+} pmp_priv_check_result_t;
+
 void pmpcfg_csr_write(CPUState *env, uint32_t reg_index, target_ulong val);
 target_ulong pmpcfg_csr_read(CPUState *env, uint32_t reg_index);
 void pmpaddr_csr_write(CPUState *env, uint32_t addr_index, target_ulong val);
 target_ulong pmpaddr_csr_read(CPUState *env, uint32_t addr_index);
-bool pmp_hart_has_privs(CPUState *env, target_ulong addr, target_ulong size, pmp_priv_t priv);
+pmp_priv_violation_t pmp_hart_has_privs(CPUState *env, target_ulong addr, target_ulong size, pmp_priv_t priv, pmp_priv_check_result_t *pmp_priv_check);
 
 #endif
